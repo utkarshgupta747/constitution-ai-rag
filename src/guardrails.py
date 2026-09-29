@@ -36,6 +36,23 @@ SCOPE_KEYWORDS = [
     "bill",
     "legislative",
     "constitutional law",
+    "liberty",
+    "personal liberty",
+    "life and personal liberty",
+    "deprived",
+    "deprive",
+    "deprivation",
+    "equality before the law",
+    "equal protection",
+    "freedom of speech",
+    "freedom of religion",
+    "religious freedom",
+    "right to life",
+    "right to education",
+    "arrest",
+    "detention",
+    "forced labour",
+    "untouchability",
 ]
 
 
@@ -77,6 +94,28 @@ OUT_OF_SCOPE_PATTERNS = [
 ]
 
 
+# ---------------------------------------------------------
+# Natural-language constitutional rights questions
+# ---------------------------------------------------------
+
+CONSTITUTIONAL_RIGHT_PATTERNS = [
+    "take away someone's liberty",
+    "take away someones liberty",
+    "take away liberty",
+    "deprive someone of liberty",
+    "deprive someone of their liberty",
+    "deprive a person of liberty",
+    "can the government take away",
+    "can government take away",
+    "government deprive",
+    "government deny",
+]
+
+
+# ---------------------------------------------------------
+# Helper functions
+# ---------------------------------------------------------
+
 def is_malicious_query(query: str) -> bool:
     """
     Detect obvious prompt injection or malicious requests.
@@ -105,6 +144,13 @@ def is_constitution_related(query: str) -> bool:
     ):
         return True
 
+    # Natural-language constitutional rights questions
+    if any(
+        pattern in normalized
+        for pattern in CONSTITUTIONAL_RIGHT_PATTERNS
+    ):
+        return True
+
     # Known Constitution/legal terminology
     return any(
         keyword in normalized
@@ -125,27 +171,43 @@ def is_obviously_out_of_scope(query: str) -> bool:
     )
 
 
+# ---------------------------------------------------------
+# Main guardrail classifier
+# ---------------------------------------------------------
+
 def check_query(query: str) -> str:
     """
-    Return one of:
+    Classify the user query into one of:
 
-    - safe
     - malicious
-    - out_of_scope
     - constitution
+    - out_of_scope
+
+    Malicious queries are checked first so that prompt
+    injection attempts cannot be classified as normal
+    Constitution questions.
     """
 
-    if not query or not query.strip():
-        return "out_of_scope"
+    normalized = query.lower().strip()
 
-    if is_malicious_query(query):
+    # 1. Malicious query
+    # MALICIOUS_PATTERNS are regex patterns, so use
+    # is_malicious_query() instead of plain substring matching.
+    if is_malicious_query(normalized):
         return "malicious"
 
-    if is_obviously_out_of_scope(query):
-        return "out_of_scope"
+    # 2. Natural-language constitutional rights questions
+    for pattern in CONSTITUTIONAL_RIGHT_PATTERNS:
+        if pattern in normalized:
+            return "constitution"
 
-    if is_constitution_related(query):
+    # 3. Explicit constitutional keywords
+    if is_constitution_related(normalized):
         return "constitution"
 
-    # Conservative default.
+    # 4. Explicit out-of-scope patterns
+    if is_obviously_out_of_scope(normalized):
+        return "out_of_scope"
+
+    # 5. Default
     return "out_of_scope"
