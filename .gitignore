@@ -1,0 +1,22 @@
+﻿# Python
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+
+# Environment / secrets
+.env
+.streamlit/secrets.toml
+
+# Runtime logs
+logs/
+
+# Generated embedding artifacts
+data/processed/embeddings.npy
+
+# OS
+.DS_Store
